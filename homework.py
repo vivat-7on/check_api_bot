@@ -48,8 +48,7 @@ def get_file_handler():
 
 
 def get_message_handler():
-    """Возвращает обработчик сообщений для вывода в stdout.
-    """
+    """Возвращает обработчик сообщений для вывода в stdout."""
     message_handler = logging.StreamHandler(sys.stdout)
     message_handler.setLevel(logging.ERROR)
     message_handler.setFormatter(logging.Formatter(_format))
@@ -57,8 +56,7 @@ def get_message_handler():
 
 
 def get_telegram_handler():
-    """Возвращает обработчик сообщений для отправки в Telegram.
-    """
+    """Возвращает обработчик сообщений для отправки в Telegram."""
     telegram_handler = TelegramLoggingHandler(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID)
     telegram_handler.setLevel(logging.ERROR)
     telegram_handler.setFormatter(logging.Formatter(_format))
@@ -66,8 +64,7 @@ def get_telegram_handler():
 
 
 def get_logger(name=__name__):
-    """Возвращает логгер с настроенными обработчиками.
-    """
+    """Возвращает логгер с настроенными обработчиками."""
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
     logger.addHandler(get_file_handler())
@@ -80,7 +77,7 @@ logger = get_logger()
 
 
 def check_tokens():
-    """Проверяет доступность переменных окружения,
+    """Проверяет доступность переменных окружения.
     которые необходимы для работы программы.
     Возвращает True, если все переменные окружения доступны,
     иначе возвращает False.
@@ -145,7 +142,7 @@ def check_response(response) -> None:
 
 
 def parse_status(homework):
-    """Извлекает статус проверки работы из ответа API и
+    """Извлекает статус проверки работы из ответа API и.
     возвращает строку с описанием статуса.
     Принимает элемент списка статусов работ.
     """
@@ -168,8 +165,7 @@ def parse_status(homework):
 
 
 def main() -> None:
-    """Основная логика работы бота.
-    """
+    """Основная логика работы бота."""
     check_tokens()
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
@@ -191,7 +187,8 @@ def main() -> None:
                 logger.exception('Произошла ошибка', exc_info=error)
                 send_message(
                     bot,
-                    'Произошла ошибка при получении и обработке информации от API'
+                    'Произошла ошибка при получении и '
+                    'обработке информации от API'
                 )
                 error_sent = True
         finally:
