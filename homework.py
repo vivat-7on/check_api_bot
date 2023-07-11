@@ -34,6 +34,8 @@ _format = ('%(asctime)s - '
 
 
 def get_file_handler():
+    """Возвращает обработчик файлового лога.
+    """
     file_handler = RotatingFileHandler(
         'main.log',
         mode='w',
@@ -46,6 +48,8 @@ def get_file_handler():
 
 
 def get_message_handler():
+    """Возвращает обработчик сообщений для вывода в stdout.
+    """
     message_handler = logging.StreamHandler(sys.stdout)
     message_handler.setLevel(logging.ERROR)
     message_handler.setFormatter(logging.Formatter(_format))
@@ -53,6 +57,8 @@ def get_message_handler():
 
 
 def get_telegram_handler():
+    """Возвращает обработчик сообщений для отправки в Telegram.
+    """
     telegram_handler = TelegramLoggingHandler(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID)
     telegram_handler.setLevel(logging.ERROR)
     telegram_handler.setFormatter(logging.Formatter(_format))
@@ -60,6 +66,8 @@ def get_telegram_handler():
 
 
 def get_logger(name=__name__):
+    """Возвращает логгер с настроенными обработчиками.
+    """
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
     logger.addHandler(get_file_handler())
