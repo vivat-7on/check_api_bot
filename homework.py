@@ -26,15 +26,20 @@ HOMEWORK_VERDICTS = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
-_format = (f'%(asctime)s - '
-           f'[%(levelname)s]- '
-           f'%(name)s - '
-           f'(%(filename)s).%(funcName)s(%(lineno)d) - '
-           f'%(message)s')
+_format = ('%(asctime)s - '
+           '[%(levelname)s]- '
+           '%(name)s - '
+           '(%(filename)s).%(funcName)s(%(lineno)d) - '
+           '%(message)s')
 
 
 def get_file_handler():
-    file_handler = RotatingFileHandler('main.log', mode='w', maxBytes=50000000, backupCount=5)
+    file_handler = RotatingFileHandler(
+        'main.log',
+        mode='w',
+        maxBytes=50000000,
+        backupCount=5
+    )
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(logging.Formatter(_format))
     return file_handler
@@ -70,7 +75,8 @@ def check_tokens():
     """Проверяет доступность переменных окружения,
     которые необходимы для работы программы.
     Возвращает True, если все переменные окружения доступны,
-    иначе возвращает False."""
+    иначе возвращает False.
+    """
     required_tokens = ['PRACTICUM_TOKEN', 'TELEGRAM_TOKEN', 'TELEGRAM_CHAT_ID']
     for token in required_tokens:
         if not os.getenv(token):
@@ -86,9 +92,9 @@ def send_message(bot, message):
     """
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-        logger.debug("Сообщение успешно отправлено в Telegram")
+        logger.debug('Сообщение успешно отправлено в Telegram')
     except Exception as error:
-        logger.error(f"Сбой при отправке сообщения в Telegram: {error}")
+        logger.error(f'Сбой при отправке сообщения в Telegram: {error}')
 
 
 def get_api_answer(timestamp) -> dict:
@@ -106,7 +112,11 @@ def get_api_answer(timestamp) -> dict:
         if homework_statuses.status_code == 200:
             return homework_statuses.json()
         else:
-            logger.error(f"Ошибка при запросе к API: {homework_statuses.status_code} - {homework_statuses.text}")
+            logger.error(
+                f'Ошибка при запросе к API: '
+                f'{homework_statuses.status_code} - '
+                f'{homework_statuses.text}'
+            )
             raise Exception("Ошибка при запросе к API")
     except Exception as error:
         logger.error(error)
@@ -127,21 +137,21 @@ def check_response(response) -> None:
 
 
 def parse_status(homework):
-    """
-    Извлекает статус проверки работы из ответа API и возвращает строку с описанием статуса.
+    """Извлекает статус проверки работы из ответа API и
+    возвращает строку с описанием статуса.
     Принимает элемент списка статусов работ.
     """
     if 'homework_name' not in homework:
-        error_message = "Отсутствует ключ `homework_name` в ответе API"
+        error_message = 'Отсутствует ключ `homework_name` в ответе API'
         logger.error(error_message)
         raise ValueError(error_message)
     if 'status' not in homework:
-        error_message = "Отсутствует статус работы в ответе API"
+        error_message = 'Отсутствует статус работы в ответе API'
         logger.error(error_message)
         raise ValueError(error_message)
     status = homework['status']
     if status not in HOMEWORK_VERDICTS:
-        error_message = f"Неизвестный статус работы: {status}"
+        error_message = f'Неизвестный статус работы: {status}'
         logger.error(error_message)
         raise ValueError(error_message)
     verdict = HOMEWORK_VERDICTS[status]
@@ -150,7 +160,8 @@ def parse_status(homework):
 
 
 def main() -> None:
-    """Основная логика работы бота."""
+    """Основная логика работы бота.
+    """
     check_tokens()
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
@@ -170,7 +181,10 @@ def main() -> None:
         except Exception as error:
             if not error_sent:
                 logger.exception('Произошла ошибка', exc_info=error)
-                send_message(bot, 'Произошла ошибка при получении и обработке информации от API')
+                send_message(
+                    bot,
+                    'Произошла ошибка при получении и обработке информации от API'
+                )
                 error_sent = True
         finally:
             time.sleep(RETRY_PERIOD)
