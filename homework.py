@@ -34,8 +34,7 @@ _format = ('%(asctime)s - '
 
 
 def get_file_handler():
-    """Возвращает обработчик файлового лога.
-    """
+    """Возвращает обработчик файлового лога."""
     file_handler = RotatingFileHandler(
         'main.log',
         mode='w',
