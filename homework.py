@@ -2,13 +2,10 @@ import os
 import time
 import requests
 import logging
-import sys
 
 import telegram
 from dotenv import load_dotenv
-
 from logging.handlers import RotatingFileHandler
-from telegram_handler import TelegramLoggingHandler
 
 load_dotenv()
 
@@ -46,33 +43,29 @@ def get_file_handler():
     return file_handler
 
 
-def get_message_handler():
-    """Возвращает обработчик сообщений для вывода в stdout."""
-    message_handler = logging.StreamHandler(sys.stdout)
-    message_handler.setLevel(logging.ERROR)
-    message_handler.setFormatter(logging.Formatter(_format))
-    return message_handler
+class TelegramErrorHandler(logging.Handler):
+    """Обработчик для логера отправки сообщения в Telegram."""
+
+    def emit(self, record):
+        """Отправляет сообщение об ошибке в Telegram, если уровень записи.
+        превышает или равен уровню ERROR.
+        Принимает объект записи лога (record) и
+        отправляет соответствующее сообщение.
+        """
+        if record.levelno >= logging.ERROR:
+            log_entry = self.format(record)
+            bot = telegram.Bot(token=TELEGRAM_TOKEN)
+            bot.send_message(TELEGRAM_CHAT_ID, log_entry)
 
 
-def get_telegram_handler():
-    """Возвращает обработчик сообщений для отправки в Telegram."""
-    telegram_handler = TelegramLoggingHandler(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID)
-    telegram_handler.setLevel(logging.ERROR)
-    telegram_handler.setFormatter(logging.Formatter(_format))
-    return telegram_handler
-
-
-def get_logger(name=__name__):
-    """Возвращает логгер с настроенными обработчиками."""
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(get_file_handler())
-    logger.addHandler(get_message_handler())
-    logger.addHandler(get_telegram_handler())
-    return logger
-
-
-logger = get_logger()
+logging.basicConfig(
+    level=logging.INFO,
+    format=_format)
+logger = logging.getLogger(__name__)
+telegram_handler = TelegramErrorHandler()
+telegram_handler.setFormatter(logging.Formatter(_format))
+logger.addHandler(telegram_handler)
+logger.addHandler(get_file_handler())
 
 
 def check_tokens():
@@ -86,7 +79,8 @@ def check_tokens():
         if not os.getenv(token):
             error_message = f"Отсутствует переменная окружения: {token}"
             logger.critical(error_message)
-            raise ValueError(error_message)
+            return False
+    logger.info('Переменные окружения на месте!')
     return True
 
 
@@ -114,6 +108,7 @@ def get_api_answer(timestamp) -> dict:
             params={'from_date': timestamp}
         )
         if homework_statuses.status_code == 200:
+            logger.info('Запрос к API практикума вернулся с кодом 200!')
             return homework_statuses.json()
         else:
             logger.error(
@@ -138,6 +133,8 @@ def check_response(response) -> None:
     if not isinstance(homeworks, list):
         logging.error('По ключу "homeworks" возвращается не список')
         raise TypeError('По ключу "homeworks" возвращается не список')
+    logger.info('Ответ прошёл проверку!')
+    return True
 
 
 def parse_status(homework):
@@ -145,6 +142,12 @@ def parse_status(homework):
     возвращает строку с описанием статуса.
     Принимает элемент списка статусов работ.
     """
+    homeworks = homework.get('homeworks')
+    if not homeworks:
+        error_message = 'Список статусов работ пуст'
+        logger.info(error_message)
+        raise ValueError(error_message)
+    homework = homeworks[0]
     if 'homework_name' not in homework:
         error_message = 'Отсутствует ключ `homework_name` в ответе API'
         logger.error(error_message)
@@ -165,33 +168,37 @@ def parse_status(homework):
 
 def main() -> None:
     """Основная логика работы бота."""
-    check_tokens()
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
     error_sent = False
     while True:
-        try:
-            response = get_api_answer(timestamp)
-            timestamp = response.get('current_date')
-            if check_response(response):
-                message = parse_status(response)
-                if message:
-                    send_message(bot, message)
-                    logger.debug('Сообщение отправлено!')
-                error_sent = False
-            else:
-                error_sent = False
-        except Exception as error:
-            if not error_sent:
-                logger.exception('Произошла ошибка', exc_info=error)
-                send_message(
-                    bot,
-                    'Произошла ошибка при получении и '
-                    'обработке информации от API'
-                )
-                error_sent = True
-        finally:
-            time.sleep(RETRY_PERIOD)
+        if not check_tokens():
+            break
+        else:
+            try:
+                response = get_api_answer(timestamp)
+                timestamp = response.get('current_date')
+                if check_response(response):
+                    message = parse_status(response)
+                    if message:
+                        try:
+                            send_message(bot, message)
+                            logger.info('Сообщение отправлено!')
+                        except Exception as error:
+                            logger.error(
+                                'ошибка отправки сообщения в Telegram',
+                                error
+                            )
+                    error_sent = False
+                else:
+                    error_sent = False
+            except Exception as error:
+                if not error_sent:
+                    logger.error('Произошла ошибка', error)
+                    error_sent = True
+
+            finally:
+                time.sleep(RETRY_PERIOD)
 
 
 if __name__ == '__main__':
