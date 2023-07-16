@@ -94,11 +94,8 @@ def send_message(bot, message):
     """Отправляет сообщение в Telegram.
     Принимает экземпляр класса Bot и строку с текстом сообщения.
     """
-    try:
-        bot.send_message(TELEGRAM_CHAT_ID, message)
-        logger.debug('Сообщение успешно отправлено в Telegram')
-    except Exception as error:
-        logger.error(f'Сбой при отправке сообщения в Telegram: {error}')
+    bot.send_message(TELEGRAM_CHAT_ID, message)
+    logger.debug('Сообщение успешно отправлено в Telegram')
 
 
 def get_api_answer(timestamp) -> dict:
@@ -178,19 +175,19 @@ def main() -> None:
             timestamp = response.get('current_date')
             if check_response(response):
                 homeworks = response.get('homeworks')
-                homework, *_ = homeworks
-                message = parse_status(homework)
-                if message:
-                    try:
-                        send_message(bot, message)
-                        logger.info('Сообщение отправлено!')
-                    except Exception as error:
-                        message = f'Сбой в работе программы: {error}'
-                        logger.error(message)
-                        send_message(bot, message)
-                error_sent = False
-            else:
-                error_sent = False
+                if homeworks:
+                    homework, *_ = homeworks
+                    message = parse_status(homework)
+                    if message:
+                        try:
+                            send_message(bot, message)
+                            logger.info('Сообщение отправлено!')
+                        except telegram.error.TelegramError as error:
+                            message = f'Сбой в работе программы: {error}'
+                            logging.error(message)
+                    error_sent = False
+                else:
+                    error_sent = False
         except Exception as error:
             if not error_sent:
                 logger.error('Произошла ошибка', error)
