@@ -1,12 +1,15 @@
 import os
+import sys
 import time
 import requests
 import logging
-import sys
+from http import HTTPStatus
+from logging.handlers import RotatingFileHandler
 
 import telegram
 from dotenv import load_dotenv
-from logging.handlers import RotatingFileHandler
+
+from exceptions import RequestApiError
 
 load_dotenv()
 
@@ -83,7 +86,7 @@ def check_tokens():
     """
     required_tokens = [PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]
     for token in required_tokens:
-        if not token:
+        if token is None:
             error_message = f"Отсутствует переменная окружения: {token}"
             logger.critical(error_message)
             sys.exit(1)
@@ -94,6 +97,7 @@ def send_message(bot, message):
     """Отправляет сообщение в Telegram.
     Принимает экземпляр класса Bot и строку с текстом сообщения.
     """
+    logger.info('Вызвана send_message().')
     bot.send_message(TELEGRAM_CHAT_ID, message)
     logger.debug('Сообщение успешно отправлено в Telegram')
 
@@ -110,7 +114,7 @@ def get_api_answer(timestamp) -> dict:
             headers=HEADERS,
             params={'from_date': timestamp}
         )
-        if homework_statuses.status_code == 200:
+        if homework_statuses.status_code == HTTPStatus.OK:
             logger.info('Запрос к API практикума вернулся с кодом 200!')
             return homework_statuses.json()
         else:
@@ -119,7 +123,7 @@ def get_api_answer(timestamp) -> dict:
                 f'{homework_statuses.status_code} - '
                 f'{homework_statuses.text}'
             )
-            raise Exception("Ошибка при запросе к API")
+            raise RequestApiError("Ошибка при запросе к API")
     except Exception as error:
         logger.error(error)
         raise Exception('Неожиданный результат запроса к API')
@@ -130,11 +134,9 @@ def check_response(response) -> None:
     Возвращает True или False, в зависимости от результата.
     """
     if not isinstance(response, dict):
-        logging.error('Ответ не является словарём!')
         raise TypeError('Ответ не является словарём!')
     homeworks = response.get('homeworks')
     if not isinstance(homeworks, list):
-        logging.error('По ключу "homeworks" возвращается не список')
         raise TypeError('По ключу "homeworks" возвращается не список')
     logger.info('Ответ прошёл проверку!')
     return True
@@ -175,7 +177,7 @@ def main() -> None:
             timestamp = response.get('current_date')
             if check_response(response):
                 homeworks = response.get('homeworks')
-                if homeworks:
+                if homeworks is not None:
                     homework, *_ = homeworks
                     message = parse_status(homework)
                     if message:
