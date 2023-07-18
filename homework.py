@@ -149,17 +149,14 @@ def parse_status(homework):
     """
     if 'status' not in homework:
         error_message = 'Отсутствует статус работы в ответе API'
-        logger.error(error_message)
         raise ValueError(error_message)
     status = homework['status']
     if status not in HOMEWORK_VERDICTS:
         error_message = f'Неизвестный статус работы: {status}'
-        logger.error(error_message)
         raise ValueError(error_message)
     verdict = HOMEWORK_VERDICTS[status]
     if 'homework_name' not in homework:
         error_message = 'Отсутствует ключ "homework_name"'
-        logger.error(error_message)
         raise ValueError(error_message)
     homework_name = homework.get('homework_name')
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
@@ -171,25 +168,32 @@ def main() -> None:
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
     error_sent = False
+
     while True:
         try:
             response = get_api_answer(timestamp)
             timestamp = response.get('current_date')
-            if check_response(response):
-                homeworks = response.get('homeworks')
-                if homeworks is not None:
-                    homework, *_ = homeworks
-                    message = parse_status(homework)
-                    if message:
-                        try:
-                            send_message(bot, message)
-                            logger.info('Сообщение отправлено!')
-                        except telegram.error.TelegramError as error:
-                            message = f'Сбой в работе программы: {error}'
-                            logging.error(message)
-                    error_sent = False
-                else:
-                    error_sent = False
+
+            if not check_response(response):
+                continue
+
+            homeworks = response.get('homeworks')
+            if homeworks is None:
+                error_sent = False
+                continue
+
+            homework, *_ = homeworks
+            message = parse_status(homework)
+            if message:
+                try:
+                    send_message(bot, message)
+                    logger.info('Сообщение отправлено!')
+                except telegram.error.TelegramError as error:
+                    message = f'Сбой в работе программы: {error}'
+                    logging.error(message)
+
+            error_sent = False
+
         except Exception as error:
             if not error_sent:
                 logger.error('Произошла ошибка', error)
